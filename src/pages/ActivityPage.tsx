@@ -85,7 +85,7 @@ export function ActivityPage() {
         <div className="mt-4 rounded-md border border-border bg-surface">
           {filtered.length === 0 ? (
             <EmptyState
-              title="No activity yet"
+              title="No activity yet this is just a test"
               description="Git events, builds, and dev-server changes will stream in here in real time."
             />
           ) : (
