@@ -629,7 +629,13 @@ pub fn git_push_workflow(
         None
     };
 
-    events::git_action_done(&app, &project, "push", ok, Some(output_text.clone()));
+    let detail_msg = if ok {
+        Some(format!("Published to {remote_name}/{branch_name}"))
+    } else {
+        Some(output_text.clone())
+    };
+
+    events::git_action_done(&app, &project, "push", ok, detail_msg);
 
     Ok(crate::models::GitActionResult {
         success: ok,

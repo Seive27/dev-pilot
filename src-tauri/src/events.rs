@@ -167,16 +167,17 @@ pub fn git_action_done(
     detail: Option<String>,
 ) {
     if success {
+        let (etype, title, severity) = match action {
+            "push" => (EVENT_PUSH_COMPLETED, "Pushed changes successfully", "high"),
+            "pull" => (EVENT_PULL_COMPLETED, "Pull completed", "medium"),
+            _ => (EVENT_FETCH_COMPLETED, "Fetch completed", "low"),
+        };
         emit(
             app,
             Some(project),
-            match action {
-                "push" => EVENT_PUSH_COMPLETED,
-                "pull" => EVENT_PULL_COMPLETED,
-                _ => EVENT_FETCH_COMPLETED,
-            },
-            "medium",
-            format!("{action} completed"),
+            etype,
+            severity,
+            title,
             detail,
             None,
         );

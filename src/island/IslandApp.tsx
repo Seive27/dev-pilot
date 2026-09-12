@@ -190,7 +190,16 @@ export function IslandApp() {
     void (async () => {
       unlisten = await listen<DevPilotEvent>("devpilot:event", (e) => {
         const next = e.payload;
-        if (next.severity === "critical" || next.severity === "high") {
+        const isNotif =
+          next.severity === "critical" ||
+          next.severity === "high" ||
+          next.severity === "medium" ||
+          next.type === "PUSH_COMPLETED" ||
+          next.type === "REMOTE_COMMIT" ||
+          next.type === "BUILD_SUCCESS" ||
+          next.type === "BUILD_FAILED";
+
+        if (isNotif) {
           if (bannerTimerRef.current) {
             clearTimeout(bannerTimerRef.current);
             bannerTimerRef.current = null;
