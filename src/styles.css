@@ -1,0 +1,287 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
+
+  --color-bg: #0a0a0b;
+  --color-surface: #101012;
+  --color-surface-2: #161618;
+  --color-surface-3: #1d1d20;
+  --color-border: #232326;
+  --color-border-strong: #2e2e33;
+  --color-text: #f2f2f3;
+  --color-secondary: #a3a3ab;
+  --color-muted: #6b6b73;
+  --color-success: #34d399;
+  --color-warning: #f5a524;
+  --color-error: #f47067;
+  --color-focus: rgba(255, 255, 255, 0.25);
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-island: 20px;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: transparent;
+}
+
+body {
+  background: transparent;
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  user-select: none;
+}
+
+::selection {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+/* ---- scrollbars ---------------------------------------------------------- */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #2e2e33 transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #26262a;
+  border-radius: 4px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: #33333a;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---- shared primitives --------------------------------------------------- */
+.label-overline {
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+/* ---- window chrome (command center) -------------------------------------- */
+.titlebar {
+  -webkit-app-region: drag;
+}
+.titlebar button {
+  -webkit-app-region: no-drag;
+}
+
+/* ---- island -------------------------------------------------------------- */
+.island-window {
+  background: transparent;
+}
+
+.island-pill {
+  position: absolute;
+  inset: 6px;
+  border-radius: 22px;
+  background: #0f0f11;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: none;
+  overflow: hidden;
+  cursor: default;
+  display: flex;
+  flex-direction: column;
+  transition: border-radius 180ms cubic-bezier(0.16, 1, 0.3, 1), border-color 150ms ease;
+}
+
+/* Idle: a clean circle holding just the logo. */
+.island-pill[data-mode="icon"] {
+  border-radius: 999px;
+}
+
+.island-pill[data-vertical="true"] {
+  border-radius: 26px;
+}
+
+.island-pill[data-mode="icon"][data-vertical="true"] {
+  border-radius: 999px;
+}
+
+.island-pill[data-mode="peek"] {
+  border-radius: 18px;
+}
+
+.island-pill[data-mode="peek"][data-vertical="true"] {
+  border-radius: 16px;
+}
+
+.island-pill.is-expanded {
+  border-radius: 12px;
+}
+
+.island-pill.is-error {
+  border-color: rgba(244, 112, 103, 0.35);
+}
+
+.island-pill.is-warning {
+  border-color: rgba(245, 165, 36, 0.28);
+}
+
+/* The docked side keeps a wider inset so the window can sit flush with the
+   work-area edge (window_mgr adds EDGE_INSET on that axis). The pill therefore
+   stays in the same on-screen spot, and the reserved strip becomes the root. */
+.island-pill[data-edge="top"] {
+  top: 16px;
+}
+.island-pill[data-edge="bottom"] {
+  bottom: 16px;
+}
+.island-pill[data-edge="left"] {
+  left: 16px;
+}
+.island-pill[data-edge="right"] {
+  right: 16px;
+}
+
+/* ---- edge root ----------------------------------------------------------- */
+/* Decorative connector that makes the island read as attached to the screen
+   edge. Purely visual: it never receives pointer events. */
+.island-root {
+  position: absolute;
+  pointer-events: none;
+  z-index: 2;
+}
+.island-root svg {
+  display: block;
+  overflow: visible;
+}
+.island-root[data-edge="top"] {
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.island-root[data-edge="bottom"] {
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.island-root[data-edge="left"] {
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.island-root[data-edge="right"] {
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.island-root .root-fill {
+  fill: #0f0f11;
+}
+.island-root .root-outline {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.1);
+  stroke-width: 1;
+}
+.island-root.is-error .root-outline {
+  stroke: rgba(244, 112, 103, 0.35);
+}
+.island-root.is-warning .root-outline {
+  stroke: rgba(245, 165, 36, 0.28);
+}
+
+.island-content {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.island-pill[data-edge="top"] .island-content {
+  transform-origin: top center;
+}
+.island-pill[data-edge="bottom"] .island-content {
+  transform-origin: bottom center;
+}
+.island-pill[data-edge="left"] .island-content {
+  transform-origin: center left;
+}
+.island-pill[data-edge="right"] .island-content {
+  transform-origin: center right;
+}
+.island-content.is-animating {
+  transform: scale(0.98);
+  opacity: 0;
+}
+
+/* ---- animation ----------------------------------------------------------- */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.fade-in {
+  animation: fade-in 160ms ease both;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.toast-in {
+  animation: toast-in 180ms ease both;
+}
+
+/* ---- dialogs ------------------------------------------------------------- */
+.dialog-backdrop {
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+}
+
+/* ---- status dots --------------------------------------------------------- */
+.dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+.dot-ok {
+  background: var(--color-success);
+}
+.dot-warn {
+  background: var(--color-warning);
+}
+.dot-err {
+  background: var(--color-error);
+}
+.dot-idle {
+  background: #4b4b52;
+}

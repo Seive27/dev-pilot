@@ -1,0 +1,89 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Dev Pilot",
+  "version": "1.0.2",
+  "identifier": "com.devpilot.desktop",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "withGlobalTauri": false,
+    "windows": [
+      {
+        "label": "island",
+        "title": "Dev Pilot",
+        "width": 52,
+        "height": 52,
+        "resizable": false,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "shadow": false,
+        "visible": true,
+        "focus": false,
+        "center": false
+      },
+      {
+        "label": "command-center",
+        "title": "Dev Pilot",
+        "width": 860,
+        "height": 600,
+        "minWidth": 700,
+        "minHeight": 460,
+        "maxWidth": 1600,
+        "maxHeight": 1100,
+        "resizable": true,
+        "decorations": false,
+        "center": true,
+        "visible": false,
+        "focus": false
+      },
+      {
+        "label": "close-target",
+        "title": "Dev Pilot Close Target",
+        "width": 96,
+        "height": 96,
+        "resizable": false,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "shadow": false,
+        "visible": false,
+        "focus": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: asset: http://asset.localhost; font-src 'self' data:; connect-src ipc: http://ipc.localhost"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "publisher": "Dev Pilot",
+    "copyright": "Copyright © 2026 Dev Pilot",
+    "category": "DeveloperTool",
+    "shortDescription": "Dev Pilot desktop development utility",
+    "longDescription": "Dev Pilot monitors and manages multiple local Git repositories from a floating Dynamic Island.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "allowDowngrades": true,
+      "nsis": {
+        "installMode": "currentUser",
+        "installerIcon": "icons/icon.ico",
+        "languages": ["English"],
+        "displayLanguageSelector": false,
+        "compression": "lzma"
+      }
+    }
+  }
+}
