@@ -6,6 +6,7 @@ import { TitleBar } from "./TitleBar";
 import { Sidebar } from "./Sidebar";
 import { Toasts } from "./Toasts";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { GitWorkflowModal } from "./GitWorkflowModal";
 import { useUiStore } from "../stores/uiStore";
 import { OverviewPage } from "../pages/OverviewPage";
 import { ProjectsPage } from "../pages/ProjectsPage";
@@ -23,11 +24,25 @@ export function CommandCenterApp() {
   const selectedProjectId = useUiStore((s) => s.selectedProjectId);
   const navigate = useUiStore((s) => s.navigate);
   const openProject = useUiStore((s) => s.openProject);
+  const gitWorkflowOpen = useUiStore((s) => s.gitWorkflowOpen);
+  const gitWorkflowProjectId = useUiStore((s) => s.gitWorkflowProjectId);
+  const openGitWorkflow = useUiStore((s) => s.openGitWorkflow);
+  const closeGitWorkflow = useUiStore((s) => s.closeGitWorkflow);
   const loadProjects = useProjectsStore((s) => s.load);
 
   useEffect(() => {
     loadProjects();
   }, [loadProjects]);
+
+  // Listen for open-git-workflow event from island or tray
+  useEffect(() => {
+    const unlisten = listen<string | null>("devpilot:open-git-workflow", (e) => {
+      openGitWorkflow(e.payload ?? undefined);
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [openGitWorkflow]);
 
   // Remember the window's size and position so it reopens exactly as the user
   // left it. The Rust side validates the saved rect against live monitors.
@@ -114,6 +129,11 @@ export function CommandCenterApp() {
       </div>
       <Toasts />
       <ConfirmDialog />
+      <GitWorkflowModal
+        isOpen={gitWorkflowOpen}
+        projectId={gitWorkflowProjectId}
+        onClose={closeGitWorkflow}
+      />
     </div>
   );
 }

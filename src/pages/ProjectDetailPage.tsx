@@ -6,6 +6,7 @@ import {
   Download,
   FolderOpen,
   GitBranch,
+  GitPullRequest,
   Hammer,
   Play,
   RefreshCw,
@@ -46,6 +47,7 @@ export function ProjectDetailPage({ projectId }: { projectId: string }) {
   const navigate = useUiStore((s) => s.navigate);
   const toast = useUiStore((s) => s.toast);
   const requestConfirm = useUiStore((s) => s.requestConfirm);
+  const openGitWorkflow = useUiStore((s) => s.openGitWorkflow);
   const builds = useSystemStore((s) => s.builds);
   const devServers = useSystemStore((s) => s.devServers);
   const refreshBuilds = useSystemStore((s) => s.refreshBuilds);
@@ -198,6 +200,14 @@ export function ProjectDetailPage({ projectId }: { projectId: string }) {
         ) : (
           <>
             <div className="mt-4 flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={() => openGitWorkflow(project.id)}
+                title="Open Git Workflow (Stage · Commit · Push)"
+              >
+                <GitPullRequest className="h-3 w-3" /> Git Workflow
+              </Button>
               <Button size="sm" onClick={() => runGit("fetch")} disabled={busy !== null}>
                 <Download className="h-3 w-3" /> Fetch
               </Button>

@@ -21,8 +21,12 @@ interface UiState {
   selectedProjectId: string | null;
   toasts: Toast[];
   confirm: ConfirmRequest | null;
+  gitWorkflowOpen: boolean;
+  gitWorkflowProjectId: string | null;
   navigate: (page: Page) => void;
   openProject: (id: string) => void;
+  openGitWorkflow: (projectId?: string | null) => void;
+  closeGitWorkflow: () => void;
   toast: (title: string, opts?: { detail?: string; variant?: Toast["variant"] }) => void;
   dismissToast: (id: number) => void;
   requestConfirm: (req: ConfirmRequest) => void;
@@ -36,6 +40,8 @@ export const useUiStore = create<UiState>((set, get) => ({
   selectedProjectId: null,
   toasts: [],
   confirm: null,
+  gitWorkflowOpen: false,
+  gitWorkflowProjectId: null,
 
   navigate: (page) => set({ page, selectedProjectId: null }),
 
@@ -44,6 +50,17 @@ export const useUiStore = create<UiState>((set, get) => ({
     import("./projectsStore").then(({ useProjectsStore }) => {
       useProjectsStore.getState().setActiveProject(id);
     });
+  },
+
+  openGitWorkflow: (projectId) => {
+    set((s) => ({
+      gitWorkflowOpen: true,
+      gitWorkflowProjectId: projectId ?? s.selectedProjectId,
+    }));
+  },
+
+  closeGitWorkflow: () => {
+    set({ gitWorkflowOpen: false });
   },
 
   toast: (title, opts) => {

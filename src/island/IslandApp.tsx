@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { listen } from "@tauri-apps/api/event";
 import { PhysicalPosition, PhysicalSize } from "@tauri-apps/api/dpi";
 import { open } from "@tauri-apps/plugin-dialog";
 import {
@@ -9,6 +10,7 @@ import {
   Download,
   FolderOpen,
   GitBranch,
+  GitPullRequest,
   Loader2,
   Plus,
   Terminal,
@@ -170,23 +172,46 @@ export function IslandApp() {
   const collapse = useCallback(() => applyMode("icon"), [applyMode]);
   const peek = useCallback(() => applyMode("peek"), [applyMode]);
 
-  // Event banners need room to be readable, so a banner peeks the island open.
-  useEffect(() => {
-    const critical = events.find((e) => e.severity === "critical");
-    const high = events.find((e) => e.severity === "high");
-    const next = critical ?? high;
-    if (next && next.id !== banner?.id) {
-      setBanner(next);
-      if (modeRef.current === "icon") void peek();
-      // Banners always clear themselves so the island never stays stuck open.
-      const ttl = next.severity === "critical" ? 20000 : 8000;
-      const t = setTimeout(() => {
-        setBanner(null);
-        if (modeRef.current === "peek") void collapse();
-      }, ttl);
-      return () => clearTimeout(t);
+  const bannerTimerRef = useRef<number | null>(null);
+
+  const handleDismissBanner = useCallback(() => {
+    if (bannerTimerRef.current) {
+      clearTimeout(bannerTimerRef.current);
+      bannerTimerRef.current = null;
     }
-  }, [events, banner, peek, collapse]);
+    setBanner(null);
+    if (modeRef.current === "peek") void collapse();
+  }, [collapse]);
+
+  // Listen for live events emitted from the backend (build failures, pushes, etc.)
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+
+    void (async () => {
+      unlisten = await listen<DevPilotEvent>("devpilot:event", (e) => {
+        const next = e.payload;
+        if (next.severity === "critical" || next.severity === "high") {
+          if (bannerTimerRef.current) {
+            clearTimeout(bannerTimerRef.current);
+            bannerTimerRef.current = null;
+          }
+          setBanner(next);
+          if (modeRef.current === "icon") void peek();
+
+          const ttl = next.severity === "critical" ? 15000 : 7000;
+          bannerTimerRef.current = window.setTimeout(() => {
+            setBanner(null);
+            if (modeRef.current === "peek") void collapse();
+          }, ttl);
+        }
+      });
+    })();
+
+    return () => {
+      if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
+      if (unlisten) unlisten();
+    };
+  }, [peek, collapse]);
 
   // ---- auto-hide + hover ---------------------------------------------------
   const scheduleHide = useCallback(() => {
@@ -425,6 +450,14 @@ export function IslandApp() {
     await ipc.openCommandCenter();
   };
 
+  const handleOpenGitWorkflow = async () => {
+    if (activeProject) {
+      await ipc.openGitWorkflow(activeProject.id);
+    } else {
+      await ipc.openGitWorkflow();
+    }
+  };
+
   const handleAddProject = async () => {
     try {
       const selected = await open({ directory: true, multiple: false });
@@ -489,10 +522,7 @@ export function IslandApp() {
           {banner ? (
             <EventBanner
               event={banner}
-              onDismiss={() => {
-                setBanner(null);
-                if (modeRef.current === "peek") void collapse();
-              }}
+              onDismiss={handleDismissBanner}
               isVertical={isVertical}
             />
           ) : mode === "expanded" ? (
@@ -509,6 +539,7 @@ export function IslandApp() {
                 onFetch={handleFetch}
                 onOpenFolder={handleOpenFolder}
                 onOpenTerminal={handleOpenTerminal}
+                onOpenGitWorkflow={handleOpenGitWorkflow}
                 onOpenCenter={handleOpenCommandCenter}
                 onAddProject={handleAddProject}
                 onCollapse={collapse}
@@ -525,6 +556,7 @@ export function IslandApp() {
                 onFetch={handleFetch}
                 onOpenFolder={handleOpenFolder}
                 onOpenTerminal={handleOpenTerminal}
+                onOpenGitWorkflow={handleOpenGitWorkflow}
                 onOpenCenter={handleOpenCommandCenter}
                 onAddProject={handleAddProject}
                 onCollapse={collapse}
@@ -725,6 +757,7 @@ function HorizontalExpandedPanel({
   onFetch,
   onOpenFolder,
   onOpenTerminal,
+  onOpenGitWorkflow,
   onOpenCenter,
   onAddProject,
   onCollapse,
@@ -739,6 +772,7 @@ function HorizontalExpandedPanel({
   onFetch: () => void;
   onOpenFolder: () => void;
   onOpenTerminal: () => void;
+  onOpenGitWorkflow: () => void;
   onOpenCenter: () => void;
   onAddProject: () => void;
   onCollapse: () => void;
@@ -805,20 +839,26 @@ function HorizontalExpandedPanel({
           )}
 
           {snapshot?.ok && snapshot.branch && (
-            <span className="inline-flex items-center gap-1 font-mono text-[11px] text-secondary">
+            <button
+              onClick={onOpenGitWorkflow}
+              className="inline-flex items-center gap-1 font-mono text-[11px] text-secondary hover:text-text cursor-pointer transition-colors"
+              title="Open Git Workflow"
+            >
               <GitBranch className="h-3 w-3 text-muted" />
               {snapshot.branch}
-            </span>
+            </button>
           )}
         </div>
 
-        <button
-          onClick={onCollapse}
-          className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted hover:bg-surface-2 hover:text-text"
-          title="Collapse"
-        >
-          {edge === "top" ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowUp className="h-3.5 w-3.5 rotate-180" />}
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={onCollapse}
+            className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted hover:bg-surface-2 hover:text-text transition-colors"
+            title="Collapse"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </div>
 
       {/* Body Grid */}
@@ -829,18 +869,25 @@ function HorizontalExpandedPanel({
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-4 py-2 flex-1 items-center">
-          {/* Column 1: Git Status */}
-          <div className="flex flex-col gap-1 text-[11.5px] border-r border-border/60 pr-3">
-            <div className="label-overline mb-0.5">Git Status</div>
+          {/* Column 1: Git Status (Clickable to open Git Workflow) */}
+          <div
+            onClick={onOpenGitWorkflow}
+            className="flex flex-col gap-1 text-[11.5px] border-r border-border/60 pr-3 cursor-pointer rounded-sm p-1 -m-1 hover:bg-surface-2/60 transition-colors group"
+            title="Click to open Git Workflow (Add · Commit · Push)"
+          >
+            <div className="flex items-center justify-between">
+              <div className="label-overline mb-0.5 group-hover:text-text transition-colors">Git Status</div>
+              <GitPullRequest className="h-3 w-3 text-muted group-hover:text-text transition-colors" />
+            </div>
             <div className="flex justify-between">
               <span className="text-secondary">Modified</span>
-              <span className={cx("font-mono", (snapshot?.modifiedCount ?? 0) > 0 ? "text-warning" : "text-muted")}>
+              <span className={cx("font-mono", (snapshot?.modifiedCount ?? 0) > 0 ? "text-warning font-medium" : "text-muted")}>
                 {snapshot?.modifiedCount ?? 0}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-secondary">Staged</span>
-              <span className={cx("font-mono", (snapshot?.stagedCount ?? 0) > 0 ? "text-success" : "text-muted")}>
+              <span className={cx("font-mono", (snapshot?.stagedCount ?? 0) > 0 ? "text-success font-medium" : "text-muted")}>
                 {snapshot?.stagedCount ?? 0}
               </span>
             </div>
@@ -903,6 +950,14 @@ function HorizontalExpandedPanel({
 
       {/* Action Footer */}
       <div className="flex items-center gap-2 border-t border-border pt-2.5">
+        <button
+          onClick={onOpenGitWorkflow}
+          className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-2 px-2.5 py-1 text-xs font-medium text-text transition-colors hover:bg-surface-3 hover:border-border-strong cursor-pointer"
+          title="Open Git Workflow (Add · Commit · Push)"
+        >
+          <GitPullRequest className="h-3 w-3" /> Git
+        </button>
+
         <button
           onClick={onFetch}
           disabled={fetchBusy}
@@ -967,6 +1022,7 @@ function VerticalExpandedPanel({
   onFetch,
   onOpenFolder,
   onOpenTerminal,
+  onOpenGitWorkflow,
   onOpenCenter,
   onAddProject,
   onCollapse,
@@ -982,6 +1038,7 @@ function VerticalExpandedPanel({
   onFetch: () => void;
   onOpenFolder: () => void;
   onOpenTerminal: () => void;
+  onOpenGitWorkflow: () => void;
   onOpenCenter: () => void;
   onAddProject: () => void;
   onCollapse: () => void;
@@ -1049,27 +1106,40 @@ function VerticalExpandedPanel({
             ) : (
               <div className="truncate text-[13px] font-semibold text-text">{project.name}</div>
             )}
-            <div className="mt-0.5 flex items-center gap-1.5">
-              <GitBranch className="h-3 w-3 shrink-0 text-muted" />
-              <Mono className="truncate text-secondary">
-                {snapshot?.ok ? snapshot.branch ?? "detached" : "—"}
-              </Mono>
+            <div className="mt-0.5 flex items-center justify-between">
+              <button
+                onClick={onOpenGitWorkflow}
+                className="inline-flex items-center gap-1.5 font-mono text-secondary hover:text-text cursor-pointer transition-colors truncate"
+                title="Open Git Workflow"
+              >
+                <GitBranch className="h-3 w-3 shrink-0 text-muted" />
+                <Mono className="truncate">
+                  {snapshot?.ok ? snapshot.branch ?? "detached" : "—"}
+                </Mono>
+              </button>
             </div>
           </div>
 
-          {/* Git status */}
-          <div className="rounded border border-border bg-surface px-2.5 py-2">
-            <div className="label-overline mb-1">Git</div>
+          {/* Git status (Clickable to open Git Workflow) */}
+          <div
+            onClick={onOpenGitWorkflow}
+            className="rounded border border-border bg-surface px-2.5 py-2 cursor-pointer hover:bg-surface-2/60 transition-colors group"
+            title="Click to open Git Workflow (Add · Commit · Push)"
+          >
+            <div className="flex items-center justify-between mb-1">
+              <div className="label-overline group-hover:text-text transition-colors">Git</div>
+              <GitPullRequest className="h-3 w-3 text-muted group-hover:text-text transition-colors" />
+            </div>
             <div className="flex flex-col gap-1 text-[11.5px]">
               <div className="flex justify-between">
                 <span className="text-secondary">Modified</span>
-                <span className={cx("font-mono", (snapshot?.modifiedCount ?? 0) > 0 ? "text-warning" : "text-muted")}>
+                <span className={cx("font-mono", (snapshot?.modifiedCount ?? 0) > 0 ? "text-warning font-medium" : "text-muted")}>
                   {snapshot?.modifiedCount ?? 0}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-secondary">Staged</span>
-                <span className={cx("font-mono", (snapshot?.stagedCount ?? 0) > 0 ? "text-success" : "text-muted")}>
+                <span className={cx("font-mono", (snapshot?.stagedCount ?? 0) > 0 ? "text-success font-medium" : "text-muted")}>
                   {snapshot?.stagedCount ?? 0}
                 </span>
               </div>
@@ -1112,6 +1182,14 @@ function VerticalExpandedPanel({
 
           {/* Actions */}
           <div className="mt-auto flex flex-col gap-1.5 border-t border-border pt-2.5">
+            <button
+              onClick={onOpenGitWorkflow}
+              className="flex h-7 w-full items-center justify-center gap-1.5 rounded-md border border-border bg-surface-2 text-xs font-medium text-text transition-colors hover:bg-surface-3 hover:border-border-strong cursor-pointer"
+              title="Open Git Workflow (Add · Commit · Push)"
+            >
+              <GitPullRequest className="h-3 w-3" /> Git Workflow
+            </button>
+
             <button
               onClick={onFetch}
               disabled={fetchBusy}
@@ -1195,10 +1273,22 @@ function EventBanner({
           )}
         </div>
         <button
-          onClick={onDismiss}
-          className="flex h-4 w-4 items-center justify-center rounded text-muted hover:text-text"
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            onDismiss();
+          }}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+          }}
+          onPointerUp={(e) => {
+            e.stopPropagation();
+          }}
+          className="relative z-50 flex h-5 w-5 items-center justify-center rounded text-muted hover:bg-surface-2 hover:text-text cursor-pointer transition-colors"
+          title="Dismiss notification"
         >
-          <X className="h-3 w-3" />
+          <X className="h-3.5 w-3.5 pointer-events-none" />
         </button>
       </div>
     );
@@ -1218,11 +1308,22 @@ function EventBanner({
         )}
       </div>
       <button
-        onClick={onDismiss}
-        className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted hover:bg-surface-2 hover:text-text transition-colors"
-        title="Dismiss"
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          onDismiss();
+        }}
+        onPointerDown={(e) => {
+          e.stopPropagation();
+        }}
+        onPointerUp={(e) => {
+          e.stopPropagation();
+        }}
+        className="relative z-50 flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted hover:bg-surface-2 hover:text-text transition-colors cursor-pointer"
+        title="Dismiss notification"
       >
-        <X className="h-3 w-3" />
+        <X className="h-3.5 w-3.5 pointer-events-none" />
       </button>
     </div>
   );

@@ -412,6 +412,239 @@ pub fn git_push(app: AppHandle, id: String) -> Result<(), String> {
     run_git_action(&app, &id, vec!["push"], "push")
 }
 
+#[tauri::command]
+pub fn git_get_workflow_status(
+    app: AppHandle,
+    project_id: String,
+) -> Result<crate::models::GitWorkflowStatus, String> {
+    let project = persistence::find_project(&app, &project_id)
+        .ok_or_else(|| "project not found".to_string())?;
+    let p = Path::new(&project.path);
+    if !p.exists() {
+        return Err("repository path does not exist".to_string());
+    }
+    git::get_workflow_status(p, &project.id, &project.name)
+}
+
+#[tauri::command]
+pub fn git_stage_all(
+    app: AppHandle,
+    project_id: String,
+) -> Result<crate::models::GitActionResult, String> {
+    let project = persistence::find_project(&app, &project_id)
+        .ok_or_else(|| "project not found".to_string())?;
+    let p = Path::new(&project.path);
+    if !p.exists() {
+        return Err("repository path does not exist".to_string());
+    }
+    let out = git::stage_all(p)?;
+    let ok = out.code == 0;
+    let snap = git::read_snapshot(p, &project_id);
+    let state = app.state::<AppState>();
+    state.snapshots.lock().unwrap().insert(project_id.clone(), snap.clone());
+    let _ = app.emit("devpilot:snapshot-updated", &snap);
+
+    let err_msg = if !ok && !out.stderr.trim().is_empty() {
+        Some(out.stderr.trim().to_string())
+    } else {
+        None
+    };
+
+    Ok(crate::models::GitActionResult {
+        success: ok,
+        output: if ok { "All changes staged successfully.".to_string() } else { out.stderr },
+        error: err_msg,
+        snapshot: Some(snap),
+    })
+}
+
+#[tauri::command]
+pub fn git_stage_files(
+    app: AppHandle,
+    project_id: String,
+    files: Vec<String>,
+) -> Result<crate::models::GitActionResult, String> {
+    let project = persistence::find_project(&app, &project_id)
+        .ok_or_else(|| "project not found".to_string())?;
+    let p = Path::new(&project.path);
+    if !p.exists() {
+        return Err("repository path does not exist".to_string());
+    }
+    if files.is_empty() {
+        return Err("No files specified for staging".to_string());
+    }
+    let out = git::stage_files(p, &files)?;
+    let ok = out.code == 0;
+    let snap = git::read_snapshot(p, &project_id);
+    let state = app.state::<AppState>();
+    state.snapshots.lock().unwrap().insert(project_id.clone(), snap.clone());
+    let _ = app.emit("devpilot:snapshot-updated", &snap);
+
+    let err_msg = if !ok && !out.stderr.trim().is_empty() {
+        Some(out.stderr.trim().to_string())
+    } else {
+        None
+    };
+
+    Ok(crate::models::GitActionResult {
+        success: ok,
+        output: if ok { format!("Staged {} file(s).", files.len()) } else { out.stderr },
+        error: err_msg,
+        snapshot: Some(snap),
+    })
+}
+
+#[tauri::command]
+pub fn git_unstage_files(
+    app: AppHandle,
+    project_id: String,
+    files: Vec<String>,
+) -> Result<crate::models::GitActionResult, String> {
+    let project = persistence::find_project(&app, &project_id)
+        .ok_or_else(|| "project not found".to_string())?;
+    let p = Path::new(&project.path);
+    if !p.exists() {
+        return Err("repository path does not exist".to_string());
+    }
+    if files.is_empty() {
+        return Err("No files specified to unstage".to_string());
+    }
+    let out = git::unstage_files(p, &files)?;
+    let ok = out.code == 0;
+    let snap = git::read_snapshot(p, &project_id);
+    let state = app.state::<AppState>();
+    state.snapshots.lock().unwrap().insert(project_id.clone(), snap.clone());
+    let _ = app.emit("devpilot:snapshot-updated", &snap);
+
+    let err_msg = if !ok && !out.stderr.trim().is_empty() {
+        Some(out.stderr.trim().to_string())
+    } else {
+        None
+    };
+
+    Ok(crate::models::GitActionResult {
+        success: ok,
+        output: if ok { format!("Unstaged {} file(s).", files.len()) } else { out.stderr },
+        error: err_msg,
+        snapshot: Some(snap),
+    })
+}
+
+#[tauri::command]
+pub fn git_commit_changes(
+    app: AppHandle,
+    project_id: String,
+    message: String,
+) -> Result<crate::models::GitActionResult, String> {
+    let project = persistence::find_project(&app, &project_id)
+        .ok_or_else(|| "project not found".to_string())?;
+    let p = Path::new(&project.path);
+    if !p.exists() {
+        return Err("repository path does not exist".to_string());
+    }
+    if message.trim().is_empty() {
+        return Err("Commit message cannot be empty".to_string());
+    }
+
+    let snap_before = git::read_snapshot(p, &project_id);
+    if snap_before.staged_count == 0 {
+        return Err("No staged changes to commit. Stage your changes before committing.".to_string());
+    }
+
+    events::git_action_started(&app, &project, "commit");
+    let out = git::commit(p, &message)?;
+    let ok = out.code == 0;
+    let snap = git::read_snapshot(p, &project_id);
+    let state = app.state::<AppState>();
+    state.snapshots.lock().unwrap().insert(project_id.clone(), snap.clone());
+    let _ = app.emit("devpilot:snapshot-updated", &snap);
+
+    let output_text = if ok {
+        let msg = out.stdout.trim().to_string();
+        if msg.is_empty() { "Commit created successfully.".to_string() } else { msg }
+    } else {
+        out.stderr.trim().to_string()
+    };
+
+    let err_msg = if !ok {
+        Some(if output_text.is_empty() { "Commit failed".to_string() } else { output_text.clone() })
+    } else {
+        None
+    };
+
+    events::git_action_done(&app, &project, "commit", ok, Some(output_text.clone()));
+
+    Ok(crate::models::GitActionResult {
+        success: ok,
+        output: output_text,
+        error: err_msg,
+        snapshot: Some(snap),
+    })
+}
+
+#[tauri::command]
+pub fn git_push_workflow(
+    app: AppHandle,
+    project_id: String,
+    remote: Option<String>,
+    branch: Option<String>,
+    set_upstream: bool,
+) -> Result<crate::models::GitActionResult, String> {
+    let project = persistence::find_project(&app, &project_id)
+        .ok_or_else(|| "project not found".to_string())?;
+    let p = Path::new(&project.path);
+    if !p.exists() {
+        return Err("repository path does not exist".to_string());
+    }
+
+    let snap_before = git::read_snapshot(p, &project_id);
+    let branch_name = branch
+        .filter(|b| !b.trim().is_empty())
+        .or(snap_before.branch)
+        .ok_or_else(|| "Cannot determine current branch".to_string())?;
+
+    let remote_name = remote
+        .filter(|r| !r.trim().is_empty())
+        .unwrap_or_else(|| "origin".to_string());
+
+    events::git_action_started(&app, &project, "push");
+    let out = git::push_workflow(p, &remote_name, &branch_name, set_upstream)?;
+    let ok = out.code == 0;
+    let snap = git::read_snapshot(p, &project_id);
+    let state = app.state::<AppState>();
+    state.snapshots.lock().unwrap().insert(project_id.clone(), snap.clone());
+    let _ = app.emit("devpilot:snapshot-updated", &snap);
+
+    let output_text = if ok {
+        let combined = format!("{}\n{}", out.stdout.trim(), out.stderr.trim()).trim().to_string();
+        if combined.is_empty() { format!("Pushed to {remote_name}/{branch_name} successfully.") } else { combined }
+    } else {
+        let err = out.stderr.trim();
+        if err.is_empty() { out.stdout.trim().to_string() } else { err.to_string() }
+    };
+
+    let err_msg = if !ok {
+        Some(if output_text.is_empty() { "Push rejected or failed".to_string() } else { output_text.clone() })
+    } else {
+        None
+    };
+
+    events::git_action_done(&app, &project, "push", ok, Some(output_text.clone()));
+
+    Ok(crate::models::GitActionResult {
+        success: ok,
+        output: output_text,
+        error: err_msg,
+        snapshot: Some(snap),
+    })
+}
+
+#[tauri::command]
+pub fn open_git_workflow(app: AppHandle, project_id: Option<String>) {
+    window_mgr::open_command_center(&app);
+    let _ = app.emit("devpilot:open-git-workflow", project_id);
+}
+
 // ---- open / terminal ------------------------------------------------------
 
 #[tauri::command]

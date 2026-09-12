@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowUp, Download } from "lucide-react";
+import { ArrowUp, Download, GitPullRequest } from "lucide-react";
 import { ipc } from "../lib/ipc";
 import { useProjectsStore } from "../stores/projectsStore";
 import { useUiStore } from "../stores/uiStore";
@@ -14,6 +14,7 @@ export function GitPage() {
   const refreshSnapshot = useProjectsStore((s) => s.refreshSnapshot);
   const toast = useUiStore((s) => s.toast);
   const requestConfirm = useUiStore((s) => s.requestConfirm);
+  const openGitWorkflow = useUiStore((s) => s.openGitWorkflow);
   const events = useEventsStore((s) => s.events);
   const [selected, setSelected] = useState<string>("");
   const [busy, setBusy] = useState<string | null>(null);
@@ -59,6 +60,15 @@ export function GitPage() {
               onChange={setSelected}
               options={projects.map((p) => ({ value: p.id, label: p.name }))}
             />
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={() => openGitWorkflow(selected)}
+              disabled={!selected}
+              title="Open Git Workflow (Stage · Commit · Push)"
+            >
+              <GitPullRequest className="h-3 w-3" /> Git Workflow
+            </Button>
             <Button size="sm" onClick={() => run("fetch")} disabled={!selected || busy !== null}>
               <Download className="h-3 w-3" /> Fetch
             </Button>

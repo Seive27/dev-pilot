@@ -26,6 +26,38 @@ export interface CommitInfo {
   iso: string;
 }
 
+export interface GitActionResult {
+  success: boolean;
+  output: string;
+  error?: string | null;
+  snapshot?: RepoSnapshot | null;
+}
+
+export interface GitWorkflowFile {
+  path: string;
+  status: string;
+  staged: boolean;
+  statusLabel: string;
+}
+
+export interface GitWorkflowStatus {
+  projectId: string;
+  projectName: string;
+  path: string;
+  branch?: string | null;
+  upstream?: string | null;
+  remoteName?: string | null;
+  remoteUrl?: string | null;
+  ahead: number;
+  behind: number;
+  detached: boolean;
+  files: GitWorkflowFile[];
+  modifiedCount: number;
+  stagedCount: number;
+  untrackedCount: number;
+  latestCommit?: CommitInfo | null;
+}
+
 export interface RepoSnapshot {
   projectId: string;
   ok: boolean;

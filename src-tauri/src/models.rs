@@ -80,6 +80,44 @@ pub struct CommitInfo {
     pub iso: String,
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct GitActionResult {
+    pub success: bool,
+    pub output: String,
+    pub error: Option<String>,
+    pub snapshot: Option<RepoSnapshot>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct GitWorkflowFile {
+    pub path: String,
+    pub status: String,
+    pub staged: bool,
+    pub status_label: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct GitWorkflowStatus {
+    pub project_id: String,
+    pub project_name: String,
+    pub path: String,
+    pub branch: Option<String>,
+    pub upstream: Option<String>,
+    pub remote_name: Option<String>,
+    pub remote_url: Option<String>,
+    pub ahead: i32,
+    pub behind: i32,
+    pub detached: bool,
+    pub files: Vec<GitWorkflowFile>,
+    pub modified_count: usize,
+    pub staged_count: usize,
+    pub untracked_count: usize,
+    pub latest_commit: Option<CommitInfo>,
+}
+
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum DockEdge {

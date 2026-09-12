@@ -6,6 +6,8 @@ import type {
   DevServerState,
   DockEdge,
   DockState,
+  GitActionResult,
+  GitWorkflowStatus,
   IslandMode,
   MonitorInfo,
   PhysRect,
@@ -73,6 +75,30 @@ export const ipc = {
   gitFetch: (id: string) => invoke<void>("git_fetch", { id }),
   gitPull: (id: string) => invoke<void>("git_pull", { id }),
   gitPush: (id: string) => invoke<void>("git_push", { id }),
+  gitGetWorkflowStatus: (projectId: string) =>
+    invoke<GitWorkflowStatus>("git_get_workflow_status", { projectId }),
+  gitStageAll: (projectId: string) =>
+    invoke<GitActionResult>("git_stage_all", { projectId }),
+  gitStageFiles: (projectId: string, files: string[]) =>
+    invoke<GitActionResult>("git_stage_files", { projectId, files }),
+  gitUnstageFiles: (projectId: string, files: string[]) =>
+    invoke<GitActionResult>("git_unstage_files", { projectId, files }),
+  gitCommitChanges: (projectId: string, message: string) =>
+    invoke<GitActionResult>("git_commit_changes", { projectId, message }),
+  gitPushWorkflow: (
+    projectId: string,
+    remote?: string | null,
+    branch?: string | null,
+    setUpstream?: boolean
+  ) =>
+    invoke<GitActionResult>("git_push_workflow", {
+      projectId,
+      remote: remote ?? null,
+      branch: branch ?? null,
+      setUpstream: setUpstream ?? false,
+    }),
+  openGitWorkflow: (projectId?: string | null) =>
+    invoke<void>("open_git_workflow", { projectId: projectId ?? null }),
   openInExplorer: (path: string) => invoke<void>("open_in_explorer", { path }),
   openTerminal: (path: string) => invoke<void>("open_terminal", { path }),
 
