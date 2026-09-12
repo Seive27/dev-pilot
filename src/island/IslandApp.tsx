@@ -1182,8 +1182,8 @@ function EventBanner({
 
   if (isVertical) {
     return (
-      <div className="flex h-full flex-col items-center justify-between py-3 px-1 text-center">
-        <StatusDot tone={critical ? "err" : "warn"} />
+      <div className="event-banner-pop flex h-full flex-col items-center justify-between py-3 px-1 text-center">
+        <StatusDot tone={critical ? "err" : "warn"} className="animate-pulse" />
         <div className="flex flex-col items-center gap-1 my-auto">
           <span className={cx("text-[10px] font-medium leading-tight", critical ? "text-error" : "text-warning")}>
             {event.title}
@@ -1205,21 +1205,21 @@ function EventBanner({
   }
 
   return (
-    <div className="flex h-full items-center gap-2.5 px-3.5">
-      <StatusDot tone={critical ? "err" : "warn"} />
-      <div className="min-w-0 flex-1">
-        <div className={cx("truncate text-xs font-medium", critical ? "text-error" : "text-warning")}>
+    <div className="event-banner-pop flex h-full items-center gap-2.5 px-3.5">
+      <StatusDot tone={critical ? "err" : "warn"} className="animate-pulse shrink-0" />
+      <div className="min-w-0 flex-1 leading-tight">
+        <div className={cx("truncate text-xs font-semibold tracking-tight", critical ? "text-error" : "text-warning")}>
           {event.title}
         </div>
         {(event.projectName || event.description) && (
-          <div className="truncate font-mono text-[10.5px] text-secondary">
+          <div className="truncate font-mono text-[10.5px] text-secondary mt-0.5">
             {event.projectName ? `${event.projectName}${event.description ? " · " + event.description : ""}` : event.description}
           </div>
         )}
       </div>
       <button
         onClick={onDismiss}
-        className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted hover:bg-surface-2 hover:text-text"
+        className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted hover:bg-surface-2 hover:text-text transition-colors"
         title="Dismiss"
       >
         <X className="h-3 w-3" />

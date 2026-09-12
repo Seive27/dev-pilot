@@ -1,6 +1,6 @@
 [package]
 name = "dev-pilot"
-version = "1.0.2"
+version = "1.0.3"
 description = "Dev Pilot — a lightweight developer command center"
 authors = ["Dev Pilot"]
 edition = "2021"

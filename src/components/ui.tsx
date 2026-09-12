@@ -203,10 +203,22 @@ export function Section({
 }
 
 // ---- StatusDot ------------------------------------------------------------
-export function StatusDot({ tone }: { tone: "ok" | "warn" | "err" | "idle" }) {
+export function StatusDot({
+  tone,
+  className,
+}: {
+  tone: "ok" | "warn" | "err" | "idle";
+  className?: string;
+}) {
   const cls =
-    tone === "ok" ? "dot dot-ok" : tone === "warn" ? "dot dot-warn" : tone === "err" ? "dot dot-err" : "dot dot-idle";
-  return <span className={cls} />;
+    tone === "ok"
+      ? "dot dot-ok"
+      : tone === "warn"
+      ? "dot dot-warn"
+      : tone === "err"
+      ? "dot dot-err"
+      : "dot dot-idle";
+  return <span className={cx(cls, className)} />;
 }
 
 // ---- EmptyState -----------------------------------------------------------
