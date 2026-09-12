@@ -354,10 +354,11 @@ export function IslandApp() {
       void ipc.hideCloseTarget();
 
       if (dist <= 84) {
-        // Released over center-bottom close target: temporarily dismiss Dynamic Island for this session
+        // Released over center-bottom close target: fully close and exit Dev Pilot
         closeHoverRef.current = false;
         setDragging(false);
-        await ipc.dismissIsland();
+        void ipc.hideCloseTarget();
+        await ipc.quitApp();
         return;
       }
 
@@ -857,6 +858,15 @@ function HorizontalExpandedPanel({
               {snapshot.branch}
             </button>
           )}
+
+          <button
+            onClick={onOpenFolder}
+            className="inline-flex items-center gap-1 rounded border border-border/80 bg-surface-2/60 px-1.5 py-0.5 font-mono text-[10.5px] text-secondary hover:text-text hover:border-border-strong hover:bg-surface-3 transition-colors cursor-pointer"
+            title="Open repository folder in File Explorer"
+          >
+            <FolderOpen className="h-3 w-3 text-muted" />
+            <span className="text-[10px]">Folder</span>
+          </button>
         </div>
 
         <div className="flex items-center gap-1">
@@ -961,7 +971,7 @@ function HorizontalExpandedPanel({
       <div className="flex items-center gap-2 border-t border-border pt-2.5">
         <button
           onClick={onOpenGitWorkflow}
-          className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-2 px-2.5 py-1 text-xs font-medium text-text transition-colors hover:bg-surface-3 hover:border-border-strong cursor-pointer"
+          className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-2 px-2.5 py-1 text-xs font-medium text-text transition-colors hover:bg-surface-3 hover:border-border-strong cursor-pointer whitespace-nowrap"
           title="Open Git Workflow (Add · Commit · Push)"
         >
           <GitPullRequest className="h-3 w-3" /> Git
@@ -970,7 +980,7 @@ function HorizontalExpandedPanel({
         <button
           onClick={onFetch}
           disabled={fetchBusy}
-          className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-2 px-2.5 py-1 text-xs font-medium text-text transition-colors hover:bg-surface-3 disabled:opacity-40"
+          className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-2 px-2.5 py-1 text-xs font-medium text-text transition-colors hover:bg-surface-3 disabled:opacity-40 whitespace-nowrap"
         >
           {fetchBusy ? (
             <>
@@ -988,16 +998,8 @@ function HorizontalExpandedPanel({
         </button>
 
         <button
-          onClick={onOpenFolder}
-          className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-2 px-2.5 py-1 text-xs text-secondary transition-colors hover:bg-surface-3 hover:text-text"
-          title="Open in Explorer"
-        >
-          <FolderOpen className="h-3 w-3" /> Folder
-        </button>
-
-        <button
           onClick={onOpenTerminal}
-          className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-2 px-2.5 py-1 text-xs text-secondary transition-colors hover:bg-surface-3 hover:text-text"
+          className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-2 px-2.5 py-1 text-xs text-secondary transition-colors hover:bg-surface-3 hover:text-text whitespace-nowrap"
           title="Open Terminal"
         >
           <Terminal className="h-3 w-3" /> Terminal
@@ -1005,7 +1007,7 @@ function HorizontalExpandedPanel({
 
         <button
           onClick={onOpenCenter}
-          className="ml-auto rounded-md bg-text px-3 py-1 text-xs font-medium text-bg transition-colors hover:bg-white/90"
+          className="ml-auto rounded-md bg-text px-3 py-1 text-xs font-medium text-bg transition-colors hover:bg-white/90 whitespace-nowrap shrink-0"
         >
           Command Center
         </button>

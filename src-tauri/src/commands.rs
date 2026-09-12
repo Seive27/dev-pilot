@@ -60,11 +60,8 @@ pub fn finalize_dock(app: AppHandle, mode: String) -> Result<(), String> {
 
 #[tauri::command]
 pub fn dismiss_island(app: AppHandle) {
-    let state = app.state::<AppState>();
-    *state.island_dismissed.lock().unwrap() = true;
     let _ = window_mgr::hide_close_target(&app);
-    window_mgr::hide_island(&app);
-    let _ = app.emit("devpilot:island-dismissed", true);
+    app.exit(0);
 }
 
 #[tauri::command]
