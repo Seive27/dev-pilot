@@ -1,4 +1,8 @@
 import type { ReactNode } from "react";
+import { open } from "@tauri-apps/plugin-dialog";
+import { convertFileSrc } from "@tauri-apps/api/core";
+import { FolderOpen, RotateCcw, Volume2 } from "lucide-react";
+import notificationSound from "../assets/notification.mp3";
 import {
   useSettingsStore,
   AUTO_HIDE_OPTIONS,
@@ -231,6 +235,102 @@ export function SettingsPage() {
                 disabled={!settings.monitoringEnabled || !settings.remoteMonitoringEnabled}
                 label="Notify on GitHub Actions / CI failures"
               />
+            </SettingRow>
+          </Group>
+
+          <Group title="Notification Sound">
+            <SettingRow
+              label="Play notification chime"
+              description="Play an auditory cue when repository alerts or push notifications arrive."
+            >
+              <Switch
+                checked={settings.notificationSound}
+                onChange={(v) => update({ notificationSound: v })}
+                label="Play notification chime"
+              />
+            </SettingRow>
+
+            <SettingRow
+              label="Custom sound file (.mp3)"
+              description="Set your own custom MP3 audio file for notifications."
+              disabled={!settings.notificationSound}
+            >
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-[11px] text-secondary truncate max-w-[160px]" title={settings.customNotificationSound ?? "Default (Dev Pilot chime)"}>
+                  {settings.customNotificationSound
+                    ? settings.customNotificationSound.split(/[\\/]/).pop()
+                    : "Default chime"}
+                </span>
+
+                <button
+                  type="button"
+                  disabled={!settings.notificationSound}
+                  onClick={async () => {
+                    try {
+                      const selected = await open({
+                        multiple: false,
+                        directory: false,
+                        filters: [{ name: "MP3 Audio", extensions: ["mp3"] }],
+                      });
+                      if (selected && typeof selected === "string") {
+                        await update({ customNotificationSound: selected });
+                        try {
+                          const src = convertFileSrc(selected);
+                          const audio = new Audio(src);
+                          audio.volume = 0.65;
+                          void audio.play().catch(() => {});
+                        } catch {}
+                      }
+                    } catch (err) {
+                      console.error("failed to pick audio file", err);
+                    }
+                  }}
+                  className="inline-flex items-center gap-1 rounded border border-border bg-surface-2 px-2 py-1 text-xs text-secondary hover:text-text hover:bg-surface-3 transition-colors disabled:opacity-40 cursor-pointer"
+                  title="Browse MP3 file"
+                >
+                  <FolderOpen className="h-3 w-3" /> Browse
+                </button>
+
+                <button
+                  type="button"
+                  disabled={!settings.notificationSound}
+                  onClick={() => {
+                    try {
+                      const src = settings.customNotificationSound
+                        ? convertFileSrc(settings.customNotificationSound)
+                        : notificationSound;
+                      const audio = new Audio(src);
+                      audio.volume = 0.65;
+                      void audio.play().catch(() => {});
+                    } catch (err) {
+                      console.error("test sound error", err);
+                    }
+                  }}
+                  className="inline-flex items-center gap-1 rounded border border-border bg-surface-2 px-2 py-1 text-xs text-secondary hover:text-text hover:bg-surface-3 transition-colors disabled:opacity-40 cursor-pointer"
+                  title="Test notification sound"
+                >
+                  <Volume2 className="h-3 w-3" /> Test
+                </button>
+
+                {settings.customNotificationSound && (
+                  <button
+                    type="button"
+                    disabled={!settings.notificationSound}
+                    onClick={async () => {
+                      await update({ customNotificationSound: null });
+                      try {
+                        const audio = new Audio(notificationSound);
+                        audio.volume = 0.65;
+                        void audio.play().catch(() => {});
+                      } catch {}
+                    }}
+                    className="inline-flex items-center gap-1 rounded border border-border bg-surface-2 px-2 py-1 text-xs text-muted hover:text-text hover:bg-surface-3 transition-colors disabled:opacity-40 cursor-pointer"
+                    title="Reset to default sound"
+                  >
+                    <RotateCcw className="h-3 w-3" /> Reset
+                  </button>
+                )}
+              </div>
             </SettingRow>
           </Group>
 

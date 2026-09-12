@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { listen } from "@tauri-apps/api/event";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { PhysicalPosition, PhysicalSize } from "@tauri-apps/api/dpi";
 import { open } from "@tauri-apps/plugin-dialog";
 import {
@@ -16,6 +17,7 @@ import {
   Terminal,
   X,
 } from "lucide-react";
+import notificationSound from "../assets/notification.mp3";
 import { ipc } from "../lib/ipc";
 import { clampRectToWork, nearestMonitor, tweenWindow } from "../lib/geometry";
 import { useDockStore } from "../stores/dockStore";
@@ -200,18 +202,22 @@ export function IslandApp() {
           next.type === "BUILD_FAILED";
 
         if (isNotif) {
-          if (bannerTimerRef.current) {
-            clearTimeout(bannerTimerRef.current);
-            bannerTimerRef.current = null;
+          const s = useSettingsStore.getState().settings;
+          if (s.notificationSound !== false) {
+            try {
+              const src = s.customNotificationSound
+                ? convertFileSrc(s.customNotificationSound)
+                : notificationSound;
+              const audio = new Audio(src);
+              audio.volume = 0.65;
+              void audio.play().catch(() => {});
+            } catch (err) {
+              console.warn("audio playback error", err);
+            }
           }
+
           setBanner(next);
           if (modeRef.current === "icon") void peek();
-
-          const ttl = next.severity === "critical" ? 15000 : 7000;
-          bannerTimerRef.current = window.setTimeout(() => {
-            setBanner(null);
-            if (modeRef.current === "peek") void collapse();
-          }, ttl);
         }
       });
     })();
@@ -220,7 +226,7 @@ export function IslandApp() {
       if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
       if (unlisten) unlisten();
     };
-  }, [peek, collapse]);
+  }, [peek]);
 
   // ---- auto-hide + hover ---------------------------------------------------
   const scheduleHide = useCallback(() => {
@@ -530,11 +536,22 @@ export function IslandApp() {
       >
         <div className={cx("island-content", animating && "is-animating")}>
           {banner ? (
-            <EventBanner
-              event={banner}
-              onDismiss={handleDismissBanner}
-              isVertical={isVertical}
-            />
+            mode === "expanded" ? (
+              <ExpandedEventView
+                event={banner}
+                isVertical={isVertical}
+                edge={edge}
+                onDismiss={handleDismissBanner}
+                onOpenCenter={handleOpenCommandCenter}
+                onCollapse={collapse}
+              />
+            ) : (
+              <EventBanner
+                event={banner}
+                onDismiss={handleDismissBanner}
+                isVertical={isVertical}
+              />
+            )
           ) : mode === "expanded" ? (
             isVertical ? (
               <VerticalExpandedPanel
@@ -1252,6 +1269,163 @@ function VerticalExpandedPanel({
     <div className="flex h-full w-full">
       {rail}
       {content}
+    </div>
+  );
+}
+
+// ---- Expanded Event View (Full Details) -----------------------------------
+
+function ExpandedEventView({
+  event,
+  isVertical,
+  edge,
+  onDismiss,
+  onOpenCenter,
+  onCollapse,
+}: {
+  event: DevPilotEvent;
+  isVertical: boolean;
+  edge: DockEdge;
+  onDismiss: () => void;
+  onOpenCenter: () => void;
+  onCollapse: () => void;
+}) {
+  const critical = event.severity === "critical";
+
+  if (isVertical) {
+    return (
+      <div className="flex h-full w-full">
+        <div
+          className="flex w-[52px] shrink-0 flex-col items-center justify-between border-border py-3"
+          style={{
+            order: edge === "left" ? 0 : 2,
+            borderRightWidth: edge === "left" ? 1 : 0,
+            borderLeftWidth: edge === "right" ? 1 : 0,
+          }}
+        >
+          <button
+            onClick={onCollapse}
+            title="Collapse"
+            className="flex h-6 w-6 items-center justify-center rounded text-muted hover:bg-surface-2 hover:text-text cursor-pointer transition-colors"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+          <Logo size={22} className="rounded-full" fit="cover" />
+        </div>
+
+        <div className="flex min-w-0 flex-1 flex-col p-3 justify-between" style={{ order: 1 }}>
+          <div className="flex flex-col gap-2 min-h-0 overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-border pb-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <StatusDot tone={critical ? "err" : "warn"} className="animate-pulse shrink-0" />
+                <span className="text-[11px] font-semibold text-text uppercase tracking-wider">
+                  Notification
+                </span>
+              </div>
+              {event.projectName && (
+                <span className="rounded border border-border bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-secondary truncate max-w-[90px]">
+                  {event.projectName}
+                </span>
+              )}
+            </div>
+
+            <div className={cx("text-xs font-semibold leading-snug break-words", critical ? "text-error" : "text-warning")}>
+              {event.title}
+            </div>
+
+            {event.description && (
+              <div className="text-[11.5px] text-secondary leading-relaxed break-words whitespace-pre-wrap">
+                {event.description}
+              </div>
+            )}
+
+            <div className="text-[10px] text-muted font-mono">
+              {relativeTime(event.timestamp)}
+            </div>
+          </div>
+
+          <div className="mt-2 flex flex-col gap-1.5 border-t border-border pt-2.5">
+            <button
+              onClick={() => {
+                onDismiss();
+                onOpenCenter();
+              }}
+              className="flex h-7 w-full items-center justify-center rounded-md bg-text text-xs font-medium text-bg hover:bg-white/90 transition-colors"
+            >
+              Open Command Center
+            </button>
+            <button
+              onClick={onDismiss}
+              className="flex h-7 w-full items-center justify-center rounded-md border border-border bg-surface-2 text-xs text-secondary hover:bg-surface-3 hover:text-text transition-colors"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-full flex-col p-4 justify-between">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-border pb-2.5">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <StatusDot tone={critical ? "err" : "warn"} className="animate-pulse shrink-0" />
+          <span className="text-xs font-semibold text-text uppercase tracking-wider">
+            Notification
+          </span>
+          {event.projectName && (
+            <span className="inline-flex items-center gap-1 rounded border border-border bg-surface-2 px-2 py-0.5 font-mono text-[10.5px] text-secondary">
+              {event.projectName}
+            </span>
+          )}
+          <span className="text-[11px] font-mono text-muted">
+            {relativeTime(event.timestamp)}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1">
+          <button
+            onClick={onDismiss}
+            className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted hover:bg-surface-2 hover:text-text transition-colors"
+            title="Dismiss notification"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+
+      {/* Body: Full multiline, no text cutoff */}
+      <div className="flex flex-1 flex-col justify-center py-3 min-h-0 overflow-y-auto gap-2">
+        <div className={cx("text-sm font-semibold leading-snug break-words", critical ? "text-error" : "text-warning")}>
+          {event.title}
+        </div>
+        {event.description && (
+          <div className="text-xs text-secondary leading-relaxed break-words whitespace-pre-wrap">
+            {event.description}
+          </div>
+        )}
+      </div>
+
+      {/* Action Footer */}
+      <div className="flex items-center gap-2 border-t border-border pt-2.5">
+        <button
+          onClick={onDismiss}
+          className="rounded-md border border-border bg-surface-2 px-3 py-1 text-xs text-secondary hover:bg-surface-3 hover:text-text transition-colors"
+        >
+          Dismiss
+        </button>
+        <button
+          onClick={() => {
+            onDismiss();
+            onOpenCenter();
+          }}
+          className="ml-auto rounded-md bg-text px-3.5 py-1 text-xs font-medium text-bg hover:bg-white/90 transition-colors shrink-0"
+        >
+          Open Command Center
+        </button>
+      </div>
     </div>
   );
 }

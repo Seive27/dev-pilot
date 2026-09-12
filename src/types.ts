@@ -134,6 +134,8 @@ export interface AppSettings {
   cpuMonitoring: boolean;
   ramMonitoring: boolean;
   networkMonitoring: boolean;
+  notificationSound: boolean;
+  customNotificationSound?: string | null;
   activeProjectId?: string | null;
   ccX?: number | null;
   ccY?: number | null;

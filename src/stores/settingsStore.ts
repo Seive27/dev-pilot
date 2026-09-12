@@ -22,6 +22,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   cpuMonitoring: false,
   ramMonitoring: false,
   networkMonitoring: false,
+  notificationSound: true,
+  customNotificationSound: null,
 };
 
 export const POLLING_OPTIONS = [1, 2, 5, 10, 30, 60] as const;

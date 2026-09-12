@@ -170,6 +170,10 @@ pub struct AppSettings {
     pub cpu_monitoring: bool,
     pub ram_monitoring: bool,
     pub network_monitoring: bool,
+    #[serde(default = "default_true")]
+    pub notification_sound: bool,
+    #[serde(default)]
+    pub custom_notification_sound: Option<String>,
     #[serde(default)]
     pub active_project_id: Option<String>,
     // Command Center window geometry (physical px), persisted across launches.
@@ -223,6 +227,8 @@ impl AppSettings {
             cpu_monitoring: false,
             ram_monitoring: false,
             network_monitoring: false,
+            notification_sound: true,
+            custom_notification_sound: None,
             active_project_id: None,
             cc_x: None,
             cc_y: None,
